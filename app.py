@@ -1,6 +1,33 @@
 import streamlit as st
 from PIL import Image
 import pytesseract
+import streamlit_authenticator as stauth
+import google.generativeai as genai
+import cv2
+import numpy as np
+
+genai.configure(api_key="AIzaSyCs37tlAhDrIyNiZ-6AP3rFfQSzBuEYDSU")
+
+names = ["Admin"]
+usernames = ["admin"]
+
+passwords = ["12345"]
+
+hashed_passwords = stauth.Hasher(passwords).generate()
+
+authenticator = stauth.Authenticate(
+    names,
+    usernames,
+    hashed_passwords,
+    "uxvision",
+    "abcdef",
+    cookie_expiry_days=1
+)
+
+name, authentication_status, username = authenticator.login("Login", "main")
+
+if authentication_status:
+    st.success(f"Welcome {name}")
 
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
@@ -44,9 +71,48 @@ if uploaded_file is not None:
     with col1:
         st.image(image, caption="Uploaded UI", use_container_width=True)
 
+        img_array = np.array(image)
+
+        gray = cv2.cvtColor(img_array, cv2.COLOR_BGR2GRAY)
+
+        edges = cv2.Canny(gray, 100, 200)
+
+        st.subheader("OpenCV Edge Detection")
+
+        st.image(edges)
+
+        contour_image = img_array.copy()
+
+        cv2.drawContours(
+            contour_image,
+            contours,
+            -1,
+            (0, 255, 0),
+            2
+        )
+
+        st.image(contour_image, caption="Detected UI Elements")
+        
+
     # OCR TEXT
 
-    extracted_text = extract_text(image)
+    extracted_text = pytesseract.image_to_string(image)
+
+    model = genai.GenerativeModel("gemini-1.5-flash")
+
+    response = model.generate_content(
+        f"Analyze this UI text and provide UX improvements:\n{extracted_text}"
+    )
+
+    ai_feedback = response.text
+
+    st.subheader("AI UX Expert Feedback")
+
+    st.write(ai_feedback)
+
+    st.subheader("Alternative Design Ideas")
+
+    st.image("assets/modern_ui.png")
 
     with col2:
         st.subheader("Extracted Text")
@@ -94,6 +160,25 @@ if uploaded_file is not None:
     st.write("• Improved typography")
     st.write("• Reduced clutter")
     st.write("• Better alignment")
+
+    conn = sqlite3.connect("uxvision.db")
+
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "INSERT INTO reports (image_name, score, suggestions, timestamp) VALUES (?, ?, ?, ?)",
+        (
+            uploaded_file.name,
+            score,
+            str(suggestions),
+            str(timestamp)
+        )
+    )
+
+    conn.commit()
+    conn.close()
+
+    timestamp = get_timestamp()
 
     # DESIGN VARIANTS
 
