@@ -8,10 +8,11 @@ import numpy as np
 import sqlite3
 import pandas as pd
 import plotly.express as px
-from datetime import datetime
 
+from backend.ocr_engine import extract_text
 from backend.scoring import calculate_score
 from backend.suggestions import generate_suggestions
+from backend.history import get_timestamp
 
 # =========================================================
 # PAGE CONFIG
@@ -19,43 +20,11 @@ from backend.suggestions import generate_suggestions
 
 st.set_page_config(
     page_title="UXVision AI",
-    page_icon="🎨",
     layout="wide"
 )
 
 # =========================================================
-# CUSTOM CSS
-# =========================================================
-
-st.markdown("""
-<style>
-
-.main {
-    background-color: #0F172A;
-}
-
-h1, h2, h3 {
-    color: white;
-}
-
-.stButton button {
-    background-color: #00ADB5;
-    color: white;
-    border-radius: 10px;
-    border: none;
-    padding: 10px;
-}
-
-.stDownloadButton button {
-    background-color: #00ADB5;
-    color: white;
-}
-
-</style>
-""", unsafe_allow_html=True)
-
-# =========================================================
-# GEMINI API
+# GEMINI AI CONFIG
 # =========================================================
 
 genai.configure(
@@ -83,38 +52,28 @@ authenticator = stauth.Authenticate(
 )
 
 name, authentication_status, username = authenticator.login(
-    "Login",
-    "main"
+    location="main"
 )
 
+# =========================================================
+# LOGIN STATUS
+# =========================================================
+
 if authentication_status is False:
-    st.error("Incorrect Username or Password")
-    st.stop()
+    st.error("Incorrect username or password")
 
 elif authentication_status is None:
-    st.warning("Please enter username and password")
-    st.stop()
+    st.warning("Please enter your login credentials")
 
 elif authentication_status:
 
-    st.success(f"Welcome {name}")
-
     authenticator.logout("Logout", "sidebar")
 
-    # =====================================================
-    # TESSERACT PATH
-    # =====================================================
+    st.sidebar.success(f"Welcome {name}")
 
-    try:
-        pytesseract.pytesseract.tesseract_cmd = (
-            r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-        )
-    except:
-        pass
-
-    # =====================================================
-    # DATABASE SETUP
-    # =====================================================
+    # =========================================================
+    # DATABASE
+    # =========================================================
 
     conn = sqlite3.connect("uxvision.db")
 
@@ -124,496 +83,371 @@ elif authentication_status:
         CREATE TABLE IF NOT EXISTS reports (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             image_name TEXT,
-            overall_score INTEGER,
+            score INTEGER,
+            suggestions TEXT,
             timestamp TEXT
         )
     """)
 
     conn.commit()
 
-    # =====================================================
+    # =========================================================
     # SIDEBAR
-    # =====================================================
+    # =========================================================
 
-    st.sidebar.title("🎨 UXVision AI")
+    st.sidebar.title("UXVision AI")
 
-    page = st.sidebar.radio(
-        "Navigation",
-        [
-            "Dashboard",
-            "Analysis History",
-            "Analytics"
-        ]
-    )
-
-    st.sidebar.markdown("### Features")
+    st.sidebar.markdown("## Features")
 
     st.sidebar.write("✔ OCR Text Detection")
-    st.sidebar.write("✔ Gemini AI Analysis")
-    st.sidebar.write("✔ OpenCV Edge Detection")
-    st.sidebar.write("✔ Contour Detection")
+    st.sidebar.write("✔ OpenCV Detection")
+    st.sidebar.write("✔ AI UX Feedback")
     st.sidebar.write("✔ UX Scoring")
-    st.sidebar.write("✔ Charts Dashboard")
-    st.sidebar.write("✔ Database Storage")
-    st.sidebar.write("✔ Authentication")
-    st.sidebar.write("✔ AI Redesign Engine")
+    st.sidebar.write("✔ UI Recommendations")
     st.sidebar.write("✔ Design Alternatives")
-    st.sidebar.write("✔ Download Reports")
+    st.sidebar.write("✔ Auto UI Fix")
+    st.sidebar.write("✔ Database History")
     st.sidebar.write("✔ Analytics Dashboard")
-    st.sidebar.write("✔ Working Navigation")
 
-    # =====================================================
-    # DASHBOARD
-    # =====================================================
+    # =========================================================
+    # MAIN TITLE
+    # =========================================================
 
-    if page == "Dashboard":
+    st.title("UXVision Dashboard")
 
-        st.title("🎨 UXVision Dashboard")
+    st.subheader(
+        "AI-Powered UI/UX Analysis and Redesign Platform"
+    )
 
-        st.subheader("AI-Powered UI/UX Analysis Platform")
+    # =========================================================
+    # FILE UPLOAD
+    # =========================================================
 
-        uploaded_file = st.file_uploader(
-            "Upload UI Screenshot",
-            type=["png", "jpg", "jpeg"]
-        )
+    uploaded_file = st.file_uploader(
+        "Upload UI Screenshot",
+        type=["png", "jpg", "jpeg"]
+    )
 
-        if uploaded_file is not None:
+    # =========================================================
+    # IMAGE PROCESSING
+    # =========================================================
 
-            # =================================================
-            # IMAGE PROCESSING
-            # =================================================
+    if uploaded_file is not None:
 
-            image = Image.open(uploaded_file)
+        image = Image.open(uploaded_file)
+
+        col1, col2 = st.columns(2)
+
+        # =====================================================
+        # LEFT COLUMN
+        # =====================================================
+
+        with col1:
+
+            st.subheader("Uploaded UI")
+
+            st.image(
+                image,
+                use_container_width=True
+            )
+
+            # ================================================
+            # OPENCV PROCESSING
+            # ================================================
 
             img_array = np.array(image)
 
-            # =================================================
-            # COLUMNS
-            # =================================================
-
-            col1, col2 = st.columns(2)
-
-            # =================================================
-            # LEFT SIDE
-            # =================================================
-
-            with col1:
-
-                st.subheader("Uploaded UI")
-
-                st.image(
-                    image,
-                    use_container_width=True
-                )
-
-                # =============================================
-                # EDGE DETECTION
-                # =============================================
-
-                gray = cv2.cvtColor(
-                    img_array,
-                    cv2.COLOR_BGR2GRAY
-                )
-
-                edges = cv2.Canny(
-                    gray,
-                    100,
-                    200
-                )
-
-                st.subheader("OpenCV Edge Detection")
-
-                st.image(edges)
-
-                # =============================================
-                # CONTOUR DETECTION
-                # =============================================
-
-                contours, _ = cv2.findContours(
-                    edges,
-                    cv2.RETR_TREE,
-                    cv2.CHAIN_APPROX_SIMPLE
-                )
-
-                contour_image = img_array.copy()
-
-                cv2.drawContours(
-                    contour_image,
-                    contours,
-                    -1,
-                    (0, 255, 0),
-                    2
-                )
-
-                st.subheader("Detected UI Components")
-
-                st.image(contour_image)
-
-                st.info(
-                    f"Detected UI Components: {len(contours)}"
-                )
-
-            # =================================================
-            # RIGHT SIDE
-            # =================================================
-
-            with col2:
-
-                # =============================================
-                # OCR TEXT EXTRACTION
-                # =============================================
-
-                try:
-
-                    extracted_text = pytesseract.image_to_string(
-                        image
-                    )
-
-                except:
-
-                    extracted_text = "OCR Failed"
-
-                st.subheader("Extracted Text")
-
-                st.write(extracted_text)
-
-                # =============================================
-                # GEMINI AI ANALYSIS
-                # =============================================
-
-                try:
-
-                    model = genai.GenerativeModel(
-                        "gemini-1.5-flash"
-                    )
-
-                    prompt = f"""
-                    Analyze this UI design.
-
-                    Provide:
-
-                    1. UX Issues
-                    2. Accessibility Problems
-                    3. Typography Improvements
-                    4. Layout Improvements
-                    5. Color Improvements
-                    6. Modern UI Suggestions
-                    7. Redesign Recommendations
-                    8. Mobile Responsiveness Suggestions
-                    9. UI Hierarchy Improvements
-                    10. Conversion Optimization Ideas
-
-                    UI Text:
-                    {extracted_text}
-                    """
-
-                    response = model.generate_content(prompt)
-
-                    ai_feedback = response.text
-
-                except Exception as e:
-
-                    ai_feedback = f"AI Analysis Failed: {e}"
-
-                st.subheader("AI UX Expert Feedback")
-
-                st.write(ai_feedback)
-
-            # =================================================
-            # UX SCORING ENGINE
-            # =================================================
-
-            st.subheader("UX Score Engine")
-
-            scores = calculate_score(extracted_text)
-
-            score_data = pd.DataFrame({
-                "Category": [
-                    "Contrast",
-                    "Typography",
-                    "Accessibility",
-                    "Alignment"
-                ],
-                "Score": [
-                    scores["contrast"],
-                    scores["typography"],
-                    scores["accessibility"],
-                    scores["alignment"]
-                ]
-            })
-
-            col3, col4 = st.columns(2)
-
-            with col3:
-
-                st.write(
-                    f"Contrast Score: {scores['contrast']}"
-                )
-
-                st.write(
-                    f"Typography Score: {scores['typography']}"
-                )
-
-                st.write(
-                    f"Accessibility Score: {scores['accessibility']}"
-                )
-
-                st.write(
-                    f"Alignment Score: {scores['alignment']}"
-                )
-
-                st.progress(
-                    scores["overall"] / 100
-                )
-
-                st.success(
-                    f"Overall UX Score: {scores['overall']}/100"
-                )
-
-            with col4:
-
-                fig = px.bar(
-                    score_data,
-                    x="Category",
-                    y="Score",
-                    title="UX Analytics Dashboard"
-                )
-
-                st.plotly_chart(
-                    fig,
-                    use_container_width=True
-                )
-
-            # =================================================
-            # AI RECOMMENDATIONS
-            # =================================================
-
-            st.subheader("AI UX Recommendations")
-
-            suggestions = generate_suggestions(
-                extracted_text
+            gray = cv2.cvtColor(
+                img_array,
+                cv2.COLOR_BGR2GRAY
             )
 
-            for suggestion in suggestions:
-
-                st.warning(suggestion)
-
-            # =================================================
-            # AUTO FIX ENGINE
-            # =================================================
-
-            st.subheader("Auto Fix UI")
-
-            st.success("AI Improvements Applied")
-
-            st.write("✔ Better spacing")
-            st.write("✔ Improved typography")
-            st.write("✔ Better hierarchy")
-            st.write("✔ Cleaner alignment")
-            st.write("✔ Improved accessibility")
-            st.write("✔ Better visual balance")
-            st.write("✔ Improved responsiveness")
-            st.write("✔ Cleaner CTA placement")
-
-            # =================================================
-            # ADVANCED REDESIGN ENGINE
-            # =================================================
-
-            st.subheader("Advanced Redesign Engine")
-
-            try:
-
-                st.image(
-                    "assets/modern_ui.png",
-                    caption="AI Generated Redesign"
-                )
-
-            except:
-
-                st.warning(
-                    "modern_ui.png not found in assets folder"
-                )
-
-            # =================================================
-            # DESIGN ALTERNATIVES
-            # =================================================
-
-            st.subheader("Design Alternatives")
-
-            d1, d2, d3 = st.columns(3)
-
-            with d1:
-
-                try:
-
-                    st.image(
-                        "assets/minimal.png",
-                        caption="Minimal Dashboard"
-                    )
-
-                except:
-
-                    st.warning("minimal.png missing")
-
-            with d2:
-
-                try:
-
-                    st.image(
-                        "assets/modern.png",
-                        caption="Modern Dashboard"
-                    )
-
-                except:
-
-                    st.warning("modern.png missing")
-
-            with d3:
-
-                try:
-
-                    st.image(
-                        "assets/creative.png",
-                        caption="Creative Dashboard"
-                    )
-
-                except:
-
-                    st.warning("creative.png missing")
-
-            # =================================================
-            # DATABASE STORAGE
-            # =================================================
-
-            timestamp = datetime.now()
-
-            cursor.execute(
-                """
-                INSERT INTO reports
-                (image_name, overall_score, timestamp)
-                VALUES (?, ?, ?)
-                """,
-                (
-                    uploaded_file.name,
-                    scores["overall"],
-                    str(timestamp)
-                )
+            edges = cv2.Canny(
+                gray,
+                100,
+                200
             )
 
-            conn.commit()
+            st.subheader("Edge Detection")
 
-            # =================================================
-            # DOWNLOAD REPORT
-            # =================================================
+            st.image(edges)
 
-            st.subheader("Download Analysis Report")
+            # ================================================
+            # CONTOUR DETECTION
+            # ================================================
 
-            report = f"""
-UXVISION AI REPORT
-
-==================================
-
-FILE NAME:
-{uploaded_file.name}
-
-==================================
-
-OVERALL SCORE:
-{scores['overall']}
-
-==================================
-
-AI FEEDBACK:
-{ai_feedback}
-
-==================================
-
-SUGGESTIONS:
-{suggestions}
-
-==================================
-
-GENERATED AT:
-{timestamp}
-"""
-
-            st.download_button(
-                label="Download Report",
-                data=report,
-                file_name="uxvision_report.txt",
-                mime="text/plain"
+            contours, hierarchy = cv2.findContours(
+                edges,
+                cv2.RETR_TREE,
+                cv2.CHAIN_APPROX_SIMPLE
             )
 
-    # =====================================================
-    # ANALYSIS HISTORY
-    # =====================================================
+            contour_image = img_array.copy()
 
-    elif page == "Analysis History":
+            cv2.drawContours(
+                contour_image,
+                contours,
+                -1,
+                (0, 255, 0),
+                2
+            )
 
-        st.title("📜 Analysis History")
+            st.subheader("Detected UI Components")
 
-        data = pd.read_sql_query(
+            st.image(
+                contour_image,
+                use_container_width=True
+            )
+
+            st.success(
+                f"Detected Components: {len(contours)}"
+            )
+
+        # =====================================================
+        # OCR + AI ANALYSIS
+        # =====================================================
+
+        extracted_text = pytesseract.image_to_string(
+            image
+        )
+
+        model = genai.GenerativeModel(
+            "gemini-1.5-flash"
+        )
+
+        response = model.generate_content(
+            f"""
+            Analyze this UI and provide:
+
+            1. UX problems
+            2. UI improvements
+            3. Accessibility improvements
+            4. Color suggestions
+            5. Typography improvements
+            6. Layout redesign ideas
+            7. Mobile responsiveness tips
+            8. Professional redesign suggestions
+
+            UI Text:
+            {extracted_text}
+            """
+        )
+
+        ai_feedback = response.text
+
+        # =====================================================
+        # RIGHT COLUMN
+        # =====================================================
+
+        with col2:
+
+            st.subheader("Extracted OCR Text")
+
+            st.write(extracted_text)
+
+            st.subheader("AI UX Expert Feedback")
+
+            st.write(ai_feedback)
+
+        # =====================================================
+        # UX SCORING
+        # =====================================================
+
+        scores = calculate_score(extracted_text)
+
+        st.subheader("UX Score Dashboard")
+
+        score_df = pd.DataFrame({
+            "Category": [
+                "Contrast",
+                "Typography",
+                "Accessibility",
+                "Alignment"
+            ],
+            "Score": [
+                scores["contrast"],
+                scores["typography"],
+                scores["accessibility"],
+                scores["alignment"]
+            ]
+        })
+
+        fig = px.bar(
+            score_df,
+            x="Category",
+            y="Score",
+            title="UX Analysis Scores"
+        )
+
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
+
+        st.progress(scores["overall"] / 100)
+
+        st.success(
+            f"Overall UX Score: {scores['overall']}/100"
+        )
+
+        # =====================================================
+        # AI RECOMMENDATIONS
+        # =====================================================
+
+        st.subheader("AI UX Recommendations")
+
+        suggestions = generate_suggestions(
+            extracted_text
+        )
+
+        for suggestion in suggestions:
+            st.warning(suggestion)
+
+        # =====================================================
+        # ANALYSIS HISTORY
+        # =====================================================
+
+        timestamp = get_timestamp()
+
+        st.subheader("Analysis History")
+
+        st.info(f"Analysis Time: {timestamp}")
+
+        # =====================================================
+        # AUTO FIX UI
+        # =====================================================
+
+        st.subheader("Auto UI Improvements")
+
+        st.success("AI redesign suggestions applied")
+
+        st.write("✔ Better spacing")
+        st.write("✔ Improved typography")
+        st.write("✔ Better alignment")
+        st.write("✔ Reduced clutter")
+        st.write("✔ Improved visual hierarchy")
+        st.write("✔ Better accessibility")
+        st.write("✔ Improved responsiveness")
+
+        # =====================================================
+        # DESIGN ALTERNATIVES
+        # =====================================================
+
+        st.subheader("Alternative Design Ideas")
+
+        col3, col4, col5 = st.columns(3)
+
+        with col3:
+            st.image(
+                "assets/minimal.png",
+                caption="Minimal UI"
+            )
+
+        with col4:
+            st.image(
+                "assets/modern.png",
+                caption="Modern UI"
+            )
+
+        with col5:
+            st.image(
+                "assets/creative.png",
+                caption="Creative UI"
+            )
+
+        # =====================================================
+        # SAVE TO DATABASE
+        # =====================================================
+
+        cursor.execute(
+            """
+            INSERT INTO reports
+            (image_name, score, suggestions, timestamp)
+            VALUES (?, ?, ?, ?)
+            """,
+            (
+                uploaded_file.name,
+                scores["overall"],
+                str(suggestions),
+                str(timestamp)
+            )
+        )
+
+        conn.commit()
+
+        # =====================================================
+        # DATABASE DASHBOARD
+        # =====================================================
+
+        st.subheader("Stored Reports")
+
+        reports_df = pd.read_sql_query(
             "SELECT * FROM reports",
             conn
         )
 
         st.dataframe(
-            data,
+            reports_df,
             use_container_width=True
         )
 
-    # =====================================================
-    # ANALYTICS PAGE
-    # =====================================================
+        # =====================================================
+        # ANALYTICS CHART
+        # =====================================================
 
-    elif page == "Analytics":
+        if len(reports_df) > 0:
 
-        st.title("📊 Analytics Dashboard")
-
-        data = pd.read_sql_query(
-            "SELECT * FROM reports",
-            conn
-        )
-
-        if len(data) > 0:
-
-            fig = px.line(
-                data,
+            analytics_fig = px.line(
+                reports_df,
                 x="timestamp",
-                y="overall_score",
+                y="score",
                 title="UX Score Trends"
             )
 
             st.plotly_chart(
-                fig,
+                analytics_fig,
                 use_container_width=True
             )
 
-            avg_score = data["overall_score"].mean()
+        # =====================================================
+        # ADVANCED REDESIGN ENGINE
+        # =====================================================
 
-            st.metric(
-                "Average UX Score",
-                round(avg_score, 2)
-            )
+        st.subheader("Advanced Redesign Engine")
 
-            highest_score = data["overall_score"].max()
+        redesign_prompt = f"""
+        Create a professional redesign strategy for this UI.
 
-            st.metric(
-                "Highest UX Score",
-                highest_score
-            )
+        Include:
+        - Better layout
+        - Better spacing
+        - Better CTA placement
+        - Accessibility improvements
+        - Color palette improvements
+        - Typography redesign
+        - Enterprise dashboard redesign
+        """
 
-            total_analyses = len(data)
+        redesign_response = model.generate_content(
+            redesign_prompt
+        )
 
-            st.metric(
-                "Total Analyses",
-                total_analyses
-            )
+        st.write(
+            redesign_response.text
+        )
 
-        else:
+        # =====================================================
+        # FOOTER
+        # =====================================================
 
-            st.info(
-                "No analytics data available."
-            )
+        st.markdown("---")
 
-    conn.close()
+        st.caption(
+            "UXVision AI • Advanced UI/UX Analysis Platform"
+        )
+
+        # =====================================================
+        # CLOSE DATABASE
+        # =====================================================
+
+        conn.close()
