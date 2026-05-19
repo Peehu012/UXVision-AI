@@ -8,6 +8,7 @@ import numpy as np
 import sqlite3
 import pandas as pd
 import plotly.express as px
+from datetime import datetime
 
 # =========================================================
 # PAGE CONFIG
@@ -19,7 +20,7 @@ st.set_page_config(
 )
 
 # =========================================================
-# GOOGLE GEMINI API
+# GEMINI API
 # =========================================================
 
 genai.configure(
@@ -67,7 +68,7 @@ elif st.session_state["authentication_status"] is None:
     st.stop()
 
 # =========================================================
-# TESSERACT PATH
+# TESSERACT SETUP
 # =========================================================
 
 try:
@@ -122,11 +123,14 @@ st.sidebar.write("✔ Authentication System")
 st.sidebar.write("✔ Database Storage")
 
 # =========================================================
-# MAIN HEADER
+# MAIN TITLE
 # =========================================================
 
 st.title("UXVision Dashboard")
-st.subheader("AI Powered UI/UX Analysis Platform")
+
+st.subheader(
+    "AI Powered UI/UX Analysis Platform"
+)
 
 # =========================================================
 # FILE UPLOAD
@@ -210,10 +214,37 @@ if uploaded_file is not None:
         )
 
     # =====================================================
-    # OCR
+    # OCR TEXT EXTRACTION
     # =====================================================
 
-    extracted_text = pytesseract.image_to_string(image)
+    try:
+
+        extracted_text = pytesseract.image_to_string(
+            image
+        )
+
+    except:
+
+        extracted_text = """
+        OCR unavailable on cloud deployment.
+
+        Demo text generated successfully.
+
+        UX Dashboard
+        Login Button
+        Navigation Menu
+        Analytics Section
+        Settings Panel
+        """
+
+        st.warning(
+            "Tesseract OCR not available on Streamlit Cloud. "
+            "Using demo OCR text."
+        )
+
+    # =====================================================
+    # EXTRACTED TEXT
+    # =====================================================
 
     with col2:
 
@@ -233,41 +264,54 @@ if uploaded_file is not None:
 
         response = model.generate_content(
             f"""
-            Analyze this UI/UX design text.
+            Analyze this UI/UX design.
 
             Provide:
             - UX issues
             - UI improvements
-            - Accessibility suggestions
-            - Typography improvements
-            - Better layout ideas
-            - Redesign recommendations
+            - Accessibility improvements
+            - Typography suggestions
+            - Better layouts
+            - Advanced redesign suggestions
 
-            Text:
+            Extracted text:
             {extracted_text}
             """
         )
 
         ai_feedback = response.text
 
-    except Exception as e:
+    except:
 
-        ai_feedback = (
-            "AI feedback unavailable. "
-            "Check Gemini API key."
-        )
+        ai_feedback = """
+        AI analysis unavailable.
+
+        Suggested improvements:
+        - Improve spacing
+        - Increase contrast
+        - Simplify navigation
+        - Use cleaner typography
+        - Improve accessibility
+        """
+
+    # =====================================================
+    # AI FEEDBACK
+    # =====================================================
 
     st.subheader("AI UX Expert Feedback")
 
     st.write(ai_feedback)
 
     # =====================================================
-    # UX SCORING ENGINE
+    # UX SCORE ENGINE
     # =====================================================
 
     contrast_score = np.random.randint(70, 100)
+
     typography_score = np.random.randint(70, 100)
+
     accessibility_score = np.random.randint(70, 100)
+
     alignment_score = np.random.randint(70, 100)
 
     overall_score = int(
@@ -281,12 +325,25 @@ if uploaded_file is not None:
 
     st.subheader("UX Scores")
 
-    st.write(f"Contrast Score: {contrast_score}")
-    st.write(f"Typography Score: {typography_score}")
-    st.write(f"Accessibility Score: {accessibility_score}")
-    st.write(f"Alignment Score: {alignment_score}")
+    st.write(
+        f"Contrast Score: {contrast_score}"
+    )
 
-    st.progress(overall_score / 100)
+    st.write(
+        f"Typography Score: {typography_score}"
+    )
+
+    st.write(
+        f"Accessibility Score: {accessibility_score}"
+    )
+
+    st.write(
+        f"Alignment Score: {alignment_score}"
+    )
+
+    st.progress(
+        overall_score / 100
+    )
 
     st.success(
         f"Overall UX Score: {overall_score}/100"
@@ -315,7 +372,7 @@ if uploaded_file is not None:
         score_data,
         x="Category",
         y="Score",
-        title="UX Score Analytics"
+        title="UX Analytics"
     )
 
     st.plotly_chart(
@@ -327,17 +384,27 @@ if uploaded_file is not None:
     # AI RECOMMENDATIONS
     # =====================================================
 
-    st.subheader("AI UX Recommendations")
+    st.subheader(
+        "AI UX Recommendations"
+    )
 
     recommendations = [
-        "Increase spacing between UI elements",
-        "Improve color contrast",
-        "Use larger headings",
-        "Reduce visual clutter",
-        "Improve accessibility labels",
-        "Improve navigation hierarchy",
-        "Use modern card layouts",
-        "Add whitespace for readability"
+
+        "Improve spacing between elements",
+
+        "Use better typography hierarchy",
+
+        "Improve accessibility contrast",
+
+        "Reduce clutter in navigation",
+
+        "Use modern dashboard cards",
+
+        "Improve mobile responsiveness",
+
+        "Add cleaner alignment",
+
+        "Improve CTA visibility"
     ]
 
     for item in recommendations:
@@ -345,61 +412,87 @@ if uploaded_file is not None:
         st.warning(item)
 
     # =====================================================
-    # AUTO FIX UI
+    # AUTO UI FIX
     # =====================================================
 
-    st.subheader("Auto UI Improvements")
+    st.subheader(
+        "Improved UI Preview"
+    )
 
-    st.info("Suggested automatic improvements applied")
+    st.info(
+        "Suggested improvements applied"
+    )
 
     st.write("✔ Better spacing")
-    st.write("✔ Improved typography")
-    st.write("✔ Better alignment")
-    st.write("✔ Reduced clutter")
+
+    st.write("✔ Better typography")
+
+    st.write("✔ Improved alignment")
+
+    st.write("✔ Cleaner layout")
+
     st.write("✔ Better accessibility")
-    st.write("✔ Modern redesign structure")
+
+    st.write("✔ Modern UI redesign")
 
     # =====================================================
     # DESIGN VARIANTS
     # =====================================================
 
-    st.subheader("Alternative Design Ideas")
+    st.subheader(
+        "Alternative Design Ideas"
+    )
 
     d1, d2, d3 = st.columns(3)
 
     with d1:
 
-        st.image(
-            "assets/minimal.png",
-            caption="Minimal Layout"
-        )
+        try:
+
+            st.image(
+                "assets/minimal.png",
+                caption="Minimal Layout"
+            )
+
+        except:
+
+            st.info("Minimal layout preview")
 
     with d2:
 
-        st.image(
-            "assets/modern.png",
-            caption="Modern Dashboard"
-        )
+        try:
+
+            st.image(
+                "assets/modern.png",
+                caption="Modern Dashboard"
+            )
+
+        except:
+
+            st.info("Modern layout preview")
 
     with d3:
 
-        st.image(
-            "assets/creative.png",
-            caption="Creative Design"
-        )
+        try:
+
+            st.image(
+                "assets/creative.png",
+                caption="Creative Design"
+            )
+
+        except:
+
+            st.info("Creative layout preview")
 
     # =====================================================
     # DATABASE SAVE
     # =====================================================
 
-    from datetime import datetime
-
     timestamp = datetime.now()
 
     cursor.execute(
         """
-        INSERT INTO reports
-        (
+        INSERT INTO reports (
             image_name,
             score,
             suggestions,
@@ -417,13 +510,17 @@ if uploaded_file is not None:
 
     conn.commit()
 
-    st.success("Analysis saved to database")
+    st.success(
+        "Analysis saved successfully"
+    )
 
     # =====================================================
     # HISTORY
     # =====================================================
 
-    st.subheader("Analysis History")
+    st.subheader(
+        "Analysis History"
+    )
 
     history_df = pd.read_sql_query(
         "SELECT * FROM reports",
