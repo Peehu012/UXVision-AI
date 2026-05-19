@@ -23,7 +23,7 @@ st.set_page_config(
 )
 
 # =========================================================
-# GEMINI AI
+# GEMINI API
 # =========================================================
 
 genai.configure(
@@ -37,6 +37,7 @@ genai.configure(
 credentials = {
     "usernames": {
         "admin": {
+            "email": "admin@gmail.com",
             "name": "Admin",
             "password": "12345"
         }
@@ -52,23 +53,31 @@ authenticator = stauth.Authenticate(
 
 try:
 
-    login_result = authenticator.login(
+    name, authentication_status, username = authenticator.login(
         location="main"
     )
 
-    if login_result:
+    if authentication_status:
 
         authenticator.logout(
             "Logout",
             "sidebar"
         )
 
-        st.sidebar.success("Welcome Admin")
+        st.sidebar.success(f"Welcome {name}")
 
-    else:
+    elif authentication_status is False:
+
+        st.error("Invalid username or password")
+        st.stop()
+
+    elif authentication_status is None:
+
+        st.warning("Please login")
         st.stop()
 
 except Exception as e:
+
     st.error(e)
     st.stop()
 
@@ -101,17 +110,18 @@ st.sidebar.title("UXVision AI")
 st.sidebar.markdown("## Features")
 
 st.sidebar.write("✔ OCR Text Detection")
-st.sidebar.write("✔ OpenCV Detection")
+st.sidebar.write("✔ OpenCV Edge Detection")
+st.sidebar.write("✔ Contour Detection")
 st.sidebar.write("✔ AI UX Feedback")
 st.sidebar.write("✔ UX Scoring")
-st.sidebar.write("✔ UI Recommendations")
-st.sidebar.write("✔ Design Alternatives")
-st.sidebar.write("✔ Auto UI Fix")
-st.sidebar.write("✔ Database History")
+st.sidebar.write("✔ AI Recommendations")
+st.sidebar.write("✔ Alternative Designs")
+st.sidebar.write("✔ Database Storage")
 st.sidebar.write("✔ Analytics Dashboard")
+st.sidebar.write("✔ Advanced Redesign Engine")
 
 # =========================================================
-# MAIN TITLE
+# TITLE
 # =========================================================
 
 st.title("UXVision Dashboard")
@@ -130,7 +140,7 @@ uploaded_file = st.file_uploader(
 )
 
 # =========================================================
-# PROCESS IMAGE
+# MAIN PROCESSING
 # =========================================================
 
 if uploaded_file is not None:
@@ -153,15 +163,23 @@ if uploaded_file is not None:
         )
 
         # =================================================
-        # OPENCV
+        # IMAGE TO NUMPY
         # =================================================
 
         img_array = np.array(image)
+
+        # =================================================
+        # GRAYSCALE
+        # =================================================
 
         gray = cv2.cvtColor(
             img_array,
             cv2.COLOR_BGR2GRAY
         )
+
+        # =================================================
+        # EDGE DETECTION
+        # =================================================
 
         edges = cv2.Canny(
             gray,
@@ -169,12 +187,12 @@ if uploaded_file is not None:
             200
         )
 
-        st.subheader("Edge Detection")
+        st.subheader("OpenCV Edge Detection")
 
         st.image(edges)
 
         # =================================================
-        # CONTOURS
+        # CONTOUR DETECTION
         # =================================================
 
         contours, hierarchy = cv2.findContours(
@@ -213,7 +231,7 @@ if uploaded_file is not None:
     )
 
     # =====================================================
-    # GEMINI AI
+    # AI MODEL
     # =====================================================
 
     model = genai.GenerativeModel(
@@ -224,14 +242,14 @@ if uploaded_file is not None:
         f"""
         Analyze this UI and provide:
 
-        1. UX problems
-        2. UI improvements
-        3. Accessibility improvements
-        4. Color suggestions
-        5. Typography improvements
-        6. Layout redesign ideas
-        7. Mobile responsiveness tips
-        8. Professional redesign suggestions
+        1. UX Problems
+        2. UI Improvements
+        3. Accessibility Improvements
+        4. Typography Suggestions
+        5. Color Palette Suggestions
+        6. Layout Improvements
+        7. Professional Redesign Ideas
+        8. Mobile Responsive Improvements
 
         UI Text:
         {extracted_text}
@@ -255,7 +273,7 @@ if uploaded_file is not None:
         st.write(ai_feedback)
 
     # =====================================================
-    # UX SCORES
+    # UX SCORE
     # =====================================================
 
     scores = calculate_score(
@@ -300,7 +318,7 @@ if uploaded_file is not None:
     )
 
     # =====================================================
-    # SUGGESTIONS
+    # AI RECOMMENDATIONS
     # =====================================================
 
     st.subheader("AI UX Recommendations")
@@ -310,6 +328,7 @@ if uploaded_file is not None:
     )
 
     for suggestion in suggestions:
+
         st.warning(suggestion)
 
     # =====================================================
@@ -325,7 +344,7 @@ if uploaded_file is not None:
     )
 
     # =====================================================
-    # AUTO FIX
+    # AUTO FIX UI
     # =====================================================
 
     st.subheader("Auto UI Improvements")
@@ -350,25 +369,28 @@ if uploaded_file is not None:
     col3, col4, col5 = st.columns(3)
 
     with col3:
+
         st.image(
             "assets/minimal.png",
             caption="Minimal UI"
         )
 
     with col4:
+
         st.image(
             "assets/modern.png",
             caption="Modern UI"
         )
 
     with col5:
+
         st.image(
             "assets/creative.png",
             caption="Creative UI"
         )
 
     # =====================================================
-    # SAVE REPORT
+    # SAVE DATABASE
     # =====================================================
 
     cursor.execute(
@@ -388,7 +410,7 @@ if uploaded_file is not None:
     conn.commit()
 
     # =====================================================
-    # DATABASE TABLE
+    # STORED REPORTS
     # =====================================================
 
     st.subheader("Stored Reports")
@@ -427,21 +449,18 @@ if uploaded_file is not None:
 
     st.subheader("Advanced Redesign Engine")
 
-    redesign_prompt = f"""
-    Create a professional redesign strategy.
-
-    Include:
-    - Better layout
-    - Better spacing
-    - Better CTA placement
-    - Accessibility improvements
-    - Color improvements
-    - Typography redesign
-    - Enterprise dashboard redesign
-    """
-
     redesign_response = model.generate_content(
-        redesign_prompt
+        f"""
+        Create a professional redesign strategy for this UI.
+
+        Include:
+        - Better spacing
+        - Better layout
+        - Better typography
+        - Better accessibility
+        - Better CTA placement
+        - Enterprise-level redesign
+        """
     )
 
     st.write(
@@ -457,5 +476,9 @@ if uploaded_file is not None:
     st.caption(
         "UXVision AI • Advanced UI/UX Analysis Platform"
     )
+
+# =========================================================
+# CLOSE DATABASE
+# =========================================================
 
 conn.close()
